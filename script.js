@@ -1,33 +1,38 @@
 document.addEventListener('DOMContentLoaded', function () {
-    const voiceBtn = document.getElementById('voiceBtn');
-    const resultDiv = document.getElementById('result');
+    // Removido el acceso al botón y su evento, ya no es necesario
 
-    voiceBtn.addEventListener('click', function () {
-        recognizeSpeech();
-    });
-
-    function recognizeSpeech() {
+    // Función para iniciar el reconocimiento de voz
+    function startRecognition() {
         const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
         recognition.lang = 'es-ES';
+        recognition.continuous = true; // Configura el reconocimiento continuo
+        recognition.interimResults = false; // No nos interesan los resultados intermedios
 
         recognition.onresult = function (event) {
-            const transcript = event.results[0][0].transcript.toLowerCase();
+            const last = event.results.length - 1; // Obtiene el índice del último resultado
+            const transcript = event.results[last][0].transcript.toLowerCase().trim();
 
-            resultDiv.innerHTML = `<p>Orden identificada: <strong>${transcript}</strong></p>`;
+            document.getElementById('result').innerHTML = `<p>Orden identificada: <strong>${transcript}</strong></p>`;
 
             // Ejecuta la acción correspondiente y envía la orden a MockAPI
             handleCommand(transcript);
         };
 
         recognition.onerror = function (event) {
-            resultDiv.innerHTML = '<p>Error en el reconocimiento de voz. Intenta nuevamente.</p>';
+            document.getElementById('result').innerHTML = '<p>Error en el reconocimiento de voz. Intenta nuevamente.</p>';
+        };
+
+        recognition.onend = function () {
+            // Reinicia automáticamente el reconocimiento cuando termina
+            recognition.start();
         };
 
         recognition.start();
     }
 
+    startRecognition(); // Inicia el reconocimiento de voz al cargar la página
+
     function handleCommand(command) {
-        // Define los comandos válidos
         const comandosValidos = [
             'abrir pestaña en blanco',
             'abrir plataforma de estudio',
@@ -38,11 +43,9 @@ document.addEventListener('DOMContentLoaded', function () {
             'buscar en google'
         ];
 
-        // Verifica si el comando es válido antes de intentar ejecutarlo
         const comandoValidoEncontrado = comandosValidos.some(comandoValido => command.includes(comandoValido));
 
         if (comandoValidoEncontrado) {
-            // Enviar el comando a MockAPI antes de ejecutar acciones
             enviarAccionAMockAPI(command, () => {
                 if (command.includes('abrir pestaña en blanco')) {
                     window.open('https://www.google.com', '_blank');
@@ -63,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
         } else {
-            resultDiv.innerHTML = '<p>Comando no reconocido. Intente con uno de la lista.</p>';
+            document.getElementById('result').innerHTML = '<p>Comando no reconocido. Intente con uno de la lista.</p>';
         }
     }
 
@@ -93,7 +96,4 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
-    
-    
-    
 });
