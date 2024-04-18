@@ -1,36 +1,34 @@
 document.addEventListener('DOMContentLoaded', function () {
-    // Removido el acceso al botón y su evento, ya no es necesario
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'es-ES';
+    recognition.continuous = true; // Siempre activo
+    recognition.interimResults = false; // Solo resultados finales
 
-    // Función para iniciar el reconocimiento de voz
-    function startRecognition() {
-        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-        recognition.lang = 'es-ES';
-        recognition.continuous = true; // Configura el reconocimiento continuo
-        recognition.interimResults = false; // No nos interesan los resultados intermedios
+    let listeningForCommand = false; // Estado para controlar cuándo estamos esperando un comando después de "Navi"
 
-        recognition.onresult = function (event) {
-            const last = event.results.length - 1; // Obtiene el índice del último resultado
-            const transcript = event.results[last][0].transcript.toLowerCase().trim();
+    recognition.onresult = function (event) {
+        const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
 
+        if (transcript.includes("navi")) {
+            listeningForCommand = true; // Comienza a escuchar para un comando después de "Navi"
+            document.getElementById('result').innerHTML = `<p>Esperando comando...</p>`;
+        } else if (listeningForCommand) {
+            listeningForCommand = false; // Resetear el estado de escucha
             document.getElementById('result').innerHTML = `<p>Orden identificada: <strong>${transcript}</strong></p>`;
+            handleCommand(transcript); // Ejecutar el comando directamente
+        }
+    };
 
-            // Ejecuta la acción correspondiente y envía la orden a MockAPI
-            handleCommand(transcript);
-        };
-
-        recognition.onerror = function (event) {
-            document.getElementById('result').innerHTML = '<p>Error en el reconocimiento de voz. Intenta nuevamente.</p>';
-        };
-
-        recognition.onend = function () {
-            // Reinicia automáticamente el reconocimiento cuando termina
+    recognition.onend = function () {
+        if (listeningForCommand) {
+            // Si se detiene durante un comando, reinicia la escucha.
             recognition.start();
-        };
+        }
+    };
 
-        recognition.start();
-    }
-
-    startRecognition(); // Inicia el reconocimiento de voz al cargar la página
+    recognition.onerror = function (event) {
+        document.getElementById('result').innerHTML = '<p>Error en el reconocimiento de voz. Intenta nuevamente.</p>';
+    };
 
     function handleCommand(command) {
         const comandosValidos = [
@@ -47,40 +45,41 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (comandoValidoEncontrado) {
             enviarAccionAMockAPI(command, () => {
-                if (command.includes('abrir pestaña en blanco')) {
-                    window.open('https://www.google.com', '_blank');
-                } else if (command.includes('abrir plataforma de estudio')) {
-                    window.open('https://online.kadasofsolutions.com/login/index.php', '_blank');
-                } else if (command.includes('navegar a inteligencia artificial')) {
-                    window.location.href = 'https://www.openai.com';
-                } else if (command.includes('recargar página actual')) {
-                    setTimeout(() => window.location.reload(), 100); // Retraso mínimo
-                } else if (command.includes('abrir una nueva ventana')) {
-                    window.open('https://www.google.com', 'newwindow', 'width=800,height=600'); 
-                } else if (command.includes('cerrar ventana')) {
-                    setTimeout(() => window.close(), 100); // Retraso mínimo
-                } else if (command.startsWith('buscar en google')) {
-                    const consulta = command.replace('buscar en google', '').trim();
-                    const urlConsulta = `https://www.google.com/search?q=${encodeURIComponent(consulta)}`;
-                    window.open(urlConsulta, '_blank');
-                }
+                executeCommand(command);
             });
         } else {
             document.getElementById('result').innerHTML = '<p>Comando no reconocido. Intente con uno de la lista.</p>';
         }
     }
 
+    function executeCommand(command) {
+        // Ejecuta la acción correspondiente al comando
+        if (command.includes('abrir pestaña en blanco')) {
+            window.open('https://www.google.com', '_blank');
+        } else if (command.includes('abrir plataforma de estudio')) {
+            window.open('https://online.kadasofsolutions.com/login/index.php', '_blank');
+        } else if (command.includes('navegar a inteligencia artificial')) {
+            window.location.href = 'https://www.openai.com';
+        } else if (command.includes('recargar página actual')) {
+            window.location.reload();
+        } else if (command.includes('abrir una nueva ventana')) {
+            window.open('https://www.google.com', 'newwindow', 'width=800,height=600');
+        } else if (command.includes('cerrar ventana')) {
+            window.close();
+        } else if (command.startsWith('buscar en google')) {
+            const consulta = command.replace('buscar en google', '').trim();
+            const urlConsulta = `https://www.google.com/search?q=${encodeURIComponent(consulta)}`;
+            window.open(urlConsulta, '_blank');
+        }
+    }
+
     function enviarAccionAMockAPI(command, callback) {
-        const now = new Date();
-        const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-        
-        const url = 'https://6610df7b0640280f219d87be.mockapi.io/commands';
-        fetch(url, {
+        fetch('https://6610df7b0640280f219d87be.mockapi.io/commands', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ command: command, timestamp: timestamp }),
+            body: JSON.stringify({ command: command }) // Envía solo el comando
         })
         .then(response => response.json())
         .then(data => {
@@ -96,4 +95,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    recognition.start(); // Inicia el reconocimiento de voz al cargar la página
 });
